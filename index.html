@@ -59,6 +59,15 @@ ol.rank li.m3{background:linear-gradient(90deg,#e0a46d,#a8683a);color:#2f1a08}
 ol.rank li.m1 .n,ol.rank li.m2 .n,ol.rank li.m3 .n{font-size:26px;color:inherit}
 ol.rank li.m1 .lv,ol.rank li.m2 .lv,ol.rank li.m3 .lv{color:inherit;opacity:.7}
 ol.rank li.mine{outline:3px solid var(--mint)}
+.quick{margin:16px 0 0;padding:16px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid var(--line);text-align:center}
+.quick .hi{font-size:17px;margin:0 0 4px}.quick .hi b{color:var(--gold)}
+.quick .bs{font-size:13px;color:#b8d2c6;margin:0 0 12px}
+.rankbtn{width:100%;margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px}
+.hint{margin:0;font-size:12.5px;color:#9fc0b0;text-align:center;line-height:1.5}
+#rankModal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(4,22,16,.82);padding:18px}
+#rankModal .box{width:100%;max-width:480px;max-height:88vh;overflow:auto;padding:18px 16px 16px;border-radius:22px;background:var(--green);border:3px solid var(--gold);box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#rankModal h2{margin:0 0 12px;justify-content:center}
+#rankModal .btn{width:100%;margin-top:14px;font-size:17px;padding:13px}
 .empty{padding:18px;text-align:center;color:#b8d2c6;font-size:14px}
 .prize{margin:10px 0 0;text-align:center;font-size:13px;color:#cfe3d9}
 .foot{margin-top:26px;text-align:center;font-size:12px;color:#8fb3a3}
@@ -147,18 +156,23 @@ ol.rank li.mine{outline:3px solid var(--mint)}
 
   <div class="status" id="status">불러오는 중…</div>
 
+  <div class="quick" id="quick" hidden>
+    <p class="hi"><b id="qName"></b> 님, 어서 오세요!</p>
+    <p class="bs" id="qBest"></p>
+    <button class="btn" id="quickGo" type="button" style="width:100%">바로 시작!</button>
+  </div>
   <form id="form" autocomplete="off">
     <input id="nick" type="text" maxlength="10" placeholder="닉네임 (2~10자)" autocomplete="off">
     <input id="phone" type="tel" inputmode="numeric" maxlength="4" placeholder="휴대폰 뒷자리 4자리" autocomplete="off">
     <label class="chk"><input id="agree" type="checkbox"><span>경품 안내 및 이벤트 운영을 위한 개인정보(닉네임·휴대폰 뒷자리) 수집·이용에 동의합니다. 이벤트 종료 후 파기해요.</span></label>
     <p class="err" id="err" role="alert"></p>
     <button class="btn" id="go" type="submit" disabled>배틀 시작!</button>
+    <p class="hint">이미 참가했다면 <b>같은 닉네임과 휴대폰 뒷자리</b>를 입력하면 내 기록으로 이어서 해요.</p>
   </form>
   <div class="me" id="me" hidden></div>
   <div style="text-align:center"><button class="linkbtn" id="switch" type="button" hidden>다른 닉네임으로 시작하기</button></div>
 
-  <h2>🏆 실시간 TOP <span id="topN">10</span> <span class="live">LIVE</span></h2>
-  <ol class="rank" id="rank"><li class="empty" style="display:block">순위를 불러오는 중…</li></ol>
+  <button class="btn ghost rankbtn" id="showRank" type="button">🏆 실시간 순위 보기 <span class="live">LIVE</span></button>
   <p class="prize" id="prize">1·2·3등에게는 금·은·동메달과 선물을 드려요!</p>
   <div class="foot" id="foot"></div>
 </div>
@@ -207,9 +221,19 @@ ol.rank li.mine{outline:3px solid var(--mint)}
         <div class="thumbs" id="oSpecials"></div>
         <p class="sub" id="oRank"></p>
         <button class="btn" id="again" type="button">다시 도전!</button>
-        <button class="btn ghost" id="toHome" type="button">순위 보러 가기</button>
+        <button class="btn ghost" id="goRank" type="button">🏆 실시간 순위 보기</button>
+        <button class="btn ghost" id="toHome" type="button">처음 화면으로</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ===== 순위 팝업 ===== -->
+<div id="rankModal" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-label="실시간 순위">
+    <h2>🏆 실시간 TOP <span id="topN">10</span> <span class="live">LIVE</span></h2>
+    <ol class="rank" id="rank"><li class="empty" style="display:block">순위를 불러오는 중…</li></ol>
+    <button class="btn" id="closeRank" type="button">닫기</button>
   </div>
 </div>
 
@@ -241,7 +265,7 @@ const DEFAULTS = {
   spawnMin: 0.22,      // 등장 간격 하한(초)
   goldPct: 10,         // 황금 농산물 비율(%)
   healPct: 9,          // 회복 아이템 비율(%)
-  healAmt: 10,         // 단비 회복량 (햇살은 2배)
+  healAmt: 5,          // 단비 회복량 (햇살은 2배)
   badPct: 9,           // 1레벨 감소 아이템 비율(%)
   badStep: 1.1,        // 레벨마다 늘어나는 감소 아이템 비율(%p)
   badMax: 24,          // 감소 아이템 비율 상한(%)
@@ -313,7 +337,7 @@ function updatePhase() {
   if (s && now < s) { phase = 'before'; const m = Math.ceil((s - now) / 60000); st.className = 'status wait'; st.textContent = '⏳ ' + fmt(ev.startTime) + ' 시작 (' + (m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분') + ' 남았어요)'; }
   else if (e && now > e) { phase = 'after'; st.className = 'status closed'; st.textContent = '이벤트가 마감되었어요. 참여해 주셔서 감사합니다!'; }
   else { phase = 'open'; st.className = 'status open'; st.textContent = e ? '🔥 진행 중 · ' + fmt(ev.endTime) + ' 마감' : '🔥 지금 도전할 수 있어요!'; }
-  checkForm();
+  checkForm(); if (typeof showQuick === 'function' && typeof saved !== 'undefined') $('quickGo').disabled = phase !== 'open';
 }
 setInterval(updatePhase, 1000);
 
@@ -323,23 +347,43 @@ function checkForm() { $('go').disabled = !(phase === 'open' && agree.checked &&
 [nick, phone, agree].forEach(el => el.addEventListener('input', checkForm));
 agree.addEventListener('change', checkForm);
 phone.addEventListener('input', () => { phone.value = phone.value.replace(/\D/g, '').slice(0, 4); checkForm(); });
-try { const sv = JSON.parse(localStorage.getItem('gp_me') || 'null'); if (sv) { nick.value = sv.nickname; phone.value = sv.phone4; agree.checked = true; } } catch (e) {}
-$('switch').onclick = () => { localStorage.removeItem('gp_me'); me = null; nick.value = phone.value = ''; agree.checked = false; $('me').hidden = true; $('switch').hidden = true; checkForm(); };
-
+let saved = null;
+try { saved = JSON.parse(localStorage.getItem('gp_me') || 'null'); } catch (e) {}
+function showQuick() {
+  const on = !!(saved && saved.nickname && saved.phone4);
+  $('quick').hidden = !on; $('form').hidden = on; $('switch').hidden = !on;
+  if (on) { $('qName').textContent = saved.nickname; $('qBest').textContent = me ? '내 최고 기록 ' + (me.topScore || 0).toLocaleString() + '점' : ''; }
+  $('quickGo').disabled = phase !== 'open';
+}
+$('switch').onclick = () => { try { localStorage.removeItem('gp_me'); } catch (e) {} saved = null; me = null; nick.value = phone.value = ''; agree.checked = false; err.textContent = ''; showQuick(); checkForm(); };
+async function begin(name, pin) {
+  err.textContent = '';
+  const r = await Store.enter(name, pin);
+  if (r.error === 'pin') { saved = null; showQuick(); err.textContent = '이미 사용 중인 닉네임이에요. 본인이라면 휴대폰 뒷자리를 확인해 주세요.'; return; }
+  me = r.user; saved = { nickname: me.nickname, phone4: me.phone4 };
+  try { localStorage.setItem('gp_me', JSON.stringify(saved)); } catch (e) {}
+  startGame();
+}
 $('form').addEventListener('submit', async ev2 => {
-  ev2.preventDefault(); err.textContent = '';
+  ev2.preventDefault();
   if ($('go').disabled) return;
   $('go').disabled = true;
-  try {
-    const name = nick.value.trim().replace(/\s+/g, ' ');
-    const r = await Store.enter(name, phone.value);
-    if (r.error === 'pin') { err.textContent = '이미 사용 중인 닉네임이에요. 본인이라면 휴대폰 뒷자리를 확인해 주세요.'; return; }
-    me = r.user; localStorage.setItem('gp_me', JSON.stringify({ nickname: me.nickname, phone4: me.phone4 }));
-    $('me').hidden = false; $('me').textContent = me.nickname + ' 님의 최고 기록 ' + (me.topScore || 0).toLocaleString() + '점'; $('switch').hidden = false;
-    startGame();
-  } catch (e) { console.error(e); err.textContent = '연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; }
+  try { await begin(nick.value.trim().replace(/\s+/g, ' '), phone.value); }
+  catch (e) { console.error(e); err.textContent = '연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; }
   finally { checkForm(); }
 });
+$('quickGo').onclick = async () => {
+  if (!saved || phase !== 'open') return;
+  $('quickGo').disabled = true;
+  try { await begin(saved.nickname, saved.phone4); }
+  catch (e) { console.error(e); err.textContent = '연결에 실패했어요. 잠시 후 다시 시도해 주세요.'; }
+  finally { showQuick(); }
+};
+/* 순위 팝업 */
+const openRank = () => { $('rankModal').hidden = false; };
+$('showRank').onclick = openRank; $('goRank').onclick = openRank; $('closeRank').onclick = () => { $('rankModal').hidden = true; };
+$('rankModal').addEventListener('pointerdown', e => { if (e.target === $('rankModal')) $('rankModal').hidden = true; });
+showQuick();
 
 /* ---------- 소리 ---------- */
 let AC = null, muted = localStorage.getItem('gp_mute') === '1';
@@ -637,6 +681,40 @@ function drawBanners() {
   ctx.globalAlpha = 1;
 }
 
+/* 회복·감소 아이템 그림 (이모지는 기기마다 위치가 달라서 직접 그려요) */
+function drawIcon(e) {
+  ctx.save();
+  if (e === '💧') {
+    const g = ctx.createLinearGradient(0, -24, 0, 26); g.addColorStop(0, '#b4ecff'); g.addColorStop(1, '#1e90ff');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(0, -24); ctx.bezierCurveTo(14, -6, 18, 2, 18, 8); ctx.arc(0, 8, 18, 0, Math.PI, false); ctx.bezierCurveTo(-18, 2, -14, -6, 0, -24); ctx.fill();
+    ctx.strokeStyle = '#0b5fb5'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.75)'; ctx.beginPath(); ctx.ellipse(-7, 8, 3.5, 7, 0.3, 0, 6.28); ctx.fill();
+  } else if (e === '☀️') {
+    ctx.fillStyle = '#ffb300';
+    for (let i = 0; i < 8; i++) { ctx.save(); ctx.rotate(i * Math.PI / 4); ctx.beginPath(); ctx.moveTo(-5, -15); ctx.lineTo(0, -25); ctx.lineTo(5, -15); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    const g = ctx.createRadialGradient(-4, -4, 2, 0, 0, 16); g.addColorStop(0, '#fff6a8'); g.addColorStop(1, '#ffb300');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 6.28); ctx.fill(); ctx.strokeStyle = '#d98200'; ctx.lineWidth = 2; ctx.stroke();
+  } else if (e === '🥾') {
+    ctx.fillStyle = '#6d4c2f'; ctx.beginPath(); ctx.moveTo(-10, -22); ctx.lineTo(7, -22); ctx.lineTo(7, 2); ctx.quadraticCurveTo(9, 7, 21, 10); ctx.lineTo(21, 21); ctx.lineTo(-11, 21); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#a07a50'; ctx.fillRect(-10, -22, 17, 6);
+    ctx.fillStyle = '#2b1b12'; ctx.fillRect(-11, 16, 32, 5);
+    ctx.strokeStyle = '#2b1b12'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-10, -5); ctx.lineTo(7, -5); ctx.moveTo(-10, 3); ctx.lineTo(7, 3); ctx.stroke();
+  } else if (e === '🥫') {
+    ctx.fillStyle = '#b0bec5'; ctx.fillRect(-13, -15, 26, 32);
+    ctx.fillStyle = '#e53935'; ctx.fillRect(-13, -5, 26, 14);
+    ctx.fillStyle = '#fff'; ctx.fillRect(-13, -1, 26, 3);
+    ctx.fillStyle = '#cfd8dc'; ctx.beginPath(); ctx.ellipse(0, -15, 13, 5, 0, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#78909c'; ctx.beginPath(); ctx.ellipse(0, 17, 13, 5, 0, 0, Math.PI); ctx.fill();
+    ctx.strokeStyle = '#546e7a'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(0, -15, 13, 5, 0, 0, 6.28); ctx.stroke();
+  } else { /* 타이어 */
+    ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, 6.28); ctx.fill();
+    ctx.strokeStyle = '#455a64'; ctx.lineWidth = 3; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(0, 0, 19, 0, 6.28); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#90a4ae'; ctx.beginPath(); ctx.arc(0, 0, 10, 0, 6.28); ctx.fill();
+    ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.arc(0, 0, 3.5, 0, 6.28); ctx.fill();
+  }
+  ctx.restore();
+}
+
 function draw(now) {
   const g = G; ctx.setTransform(K, 0, 0, K, 0, 0);
   const sky = ctx.createLinearGradient(0, 0, 0, H); const heat = Math.min(1, (g.lv - 1) / 10);
@@ -658,7 +736,7 @@ function draw(now) {
     }
     if (it.type === 'n' || it.type === 'gold') ctx.rotate(it.rot);
     if (it.kind) drawShape(it.kind, it.r, it.type === 'gold');
-    else { ctx.font = '44px system-ui, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif'; ctx.fillText(it.e, 0, 3); }
+    else drawIcon(it.e);
     ctx.restore();
   }
   for (const p of g.parts) { ctx.globalAlpha = Math.max(0, p.life * 1.6); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, 6.28); ctx.fill(); }
@@ -694,7 +772,7 @@ async function gameOver() {
   } catch (e) { console.error(e); $('oRank').textContent = '기록 저장에 실패했어요. 네트워크를 확인하고 다시 시도해 주세요.'; }
 }
 $('again').onclick = () => { if (phase !== 'open') { backHome(); return; } startGame(); };
-function backHome() { cancelAnimationFrame(raf); G = null; $('game').hidden = true; $('home').hidden = false; document.body.style.overflow = ''; updatePhase(); }
+function backHome() { cancelAnimationFrame(raf); G = null; $('game').hidden = true; $('home').hidden = false; document.body.style.overflow = ''; updatePhase(); showQuick(); }
 $('toHome').onclick = backHome;
 
 /* 입력: 멀티터치 지원 */

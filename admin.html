@@ -107,7 +107,7 @@ td.num{text-align:right;font-variant-numeric:tabular-nums}
 const C = window.GP_CONFIG, Store = window.GPStore, $ = id => document.getElementById(id);
 const say = (id, t, ok) => { const e = $(id); e.textContent = t; e.className = 'msg' + (ok ? '' : ' bad'); };
 const SKEY = 'gp_admin_h';
-const DEF = { hpMax:100, levelSec:8, startSpeed:220, stepPct:22, maxSpeedMul:5, spawnStart:0.7, spawnMin:0.22, goldPct:10, healPct:9, healAmt:10, badPct:9, badStep:1.1, badMax:24, badDmg:15, missDmg:6, pts:10, goldPts:50, comboStep:8, comboMax:3, levelBonus:50, specialSec:12, specialPts:300, specialHeal:15, setBonus:1000, crowdStep:0.35, crowdMax:4 };
+const DEF = { hpMax:100, levelSec:8, startSpeed:220, stepPct:22, maxSpeedMul:5, spawnStart:0.7, spawnMin:0.22, goldPct:10, healPct:9, healAmt:5, badPct:9, badStep:1.1, badMax:24, badDmg:15, missDmg:6, pts:10, goldPts:50, comboStep:8, comboMax:3, levelBonus:50, specialSec:12, specialPts:300, specialHeal:15, setBonus:1000, crowdStep:0.35, crowdMax:4 };
 const LABEL = {
   hpMax:['최대 생명력','시작 생명력이기도 해요'], levelSec:['레벨업 간격(초)','몇 초마다 한 단계'], startSpeed:['시작 낙하 속도','화면 높이(640) 기준 px/초'],
   stepPct:['레벨당 속도 증가(%)','1레벨 대비 누적'], maxSpeedMul:['속도 상한(배)','처음의 몇 배까지'], spawnStart:['시작 등장 간격(초)','작을수록 많이 나와요'],
