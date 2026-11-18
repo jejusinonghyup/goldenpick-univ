@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>골든픽 배틀 관리자</title>
+<style>
+:root{--green:#0f3d2e;--gold:#f5c542;--ink:#1d2b24;--bg:#f3f6f4;--line:#dfe7e2;--red:#d93a3f}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Gmarket Sans","Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;font-size:15px}
+[hidden]{display:none!important}
+header{background:var(--green);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+header h1{margin:0;font-size:18px;color:var(--gold)}
+main{max-width:1000px;margin:0 auto;padding:18px}
+section{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:16px}
+section h2{margin:0 0 10px;font-size:16px}
+input,button,select{font-family:inherit;font-size:14px}
+input[type=text],input[type=password],input[type=datetime-local],input[type=number]{padding:9px 11px;border:1px solid #c9d6ce;border-radius:9px;background:#fff}
+button{padding:9px 14px;border:0;border-radius:9px;background:var(--green);color:#fff;cursor:pointer}
+button.sec{background:#e8efeb;color:var(--ink)}button.warn{background:var(--red)}button.gold{background:var(--gold);color:var(--green);font-weight:700}
+button:disabled{opacity:.5}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.msg{font-size:13px;color:#2a7a4d;min-height:18px}.msg.bad{color:var(--red)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.cards div{padding:12px;border-radius:12px;background:#f0f6f2;text-align:center;font-size:12px;color:#5a6b62}
+.cards b{display:block;font-size:24px;color:var(--ink)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{background:#f0f6f2;cursor:pointer;white-space:nowrap}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+.gate{max-width:360px;margin:12vh auto;background:#fff;border-radius:16px;padding:26px;border:1px solid var(--line);text-align:center}
+.gate input{width:100%;margin:12px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.grid label{display:grid;gap:3px;font-size:12px;color:#5a6b62}
+.grid label span{font-size:11.5px;color:#8a9a91}
+.grid input{width:100%}
+.note{font-size:12.5px;color:#6a7a71;line-height:1.55}
+.tag{display:inline-block;padding:1px 8px;border-radius:99px;background:#f5c542;color:#0f3d2e;font-size:12px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="gate" id="gate">
+  <h2 style="margin:0">골든픽 배틀 관리자</h2>
+  <form id="gateForm"><input type="password" id="pw" placeholder="관리자 비밀번호" autocomplete="current-password"><button class="gold" style="width:100%">들어가기</button></form>
+  <div class="msg bad" id="gateMsg"></div>
+  <div class="note" id="gateNote"></div>
+</div>
+
+<div id="app" hidden>
+<header><h1>골든픽 배틀 관리자</h1><div><span id="modeTag" class="tag"></span> <button class="sec" id="logout">나가기</button></div></header>
+<main>
+  <section>
+    <h2>현황</h2>
+    <div class="cards">
+      <div><b id="sCount">0</b>참가자</div><div><b id="sPlayed">0</b>기록 있는 참가자</div><div><b id="sMax">0</b>최고 점수</div><div><b id="sAvg">0</b>평균 점수</div><div><b id="sLv">0</b>최고 레벨</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>이벤트 기간 (한국시간)</h2>
+    <div class="row"><label>시작 <input type="datetime-local" id="evS"></label><label>마감 <input type="datetime-local" id="evE"></label>
+      <button id="evSave">저장</button><button class="sec" id="evClear">기간 제한 해제</button></div>
+    <div class="msg" id="evMsg"></div><div class="note" id="evNow"></div>
+  </section>
+
+  <section>
+    <h2>TOP 10 · 시상 확인</h2>
+    <div class="note">1·2·3등 금·은·동메달 대상자의 휴대폰 뒷자리를 확인할 수 있어요. (시상용으로만 사용하세요)</div>
+    <div class="row"><button id="revealTop">TOP 10 휴대폰 뒷자리 보기</button><button class="sec" id="csvTop">TOP 10 CSV 저장</button></div>
+    <table><thead><tr><th>순위</th><th>닉네임</th><th>점수</th><th>레벨</th><th>휴대폰 뒷자리</th></tr></thead><tbody id="topBody"></tbody></table>
+  </section>
+
+  <section>
+    <h2>난이도 설정</h2>
+    <div class="note">저장하면 <b>다음 판부터</b> 모든 참가자에게 적용돼요. 이벤트 도중에 바꾸면 형평성 문제가 생길 수 있으니 시작 전에 정하세요.</div>
+    <div class="grid" id="gameForm" style="margin-top:10px"></div>
+    <div class="row"><button id="gSave">저장</button><button class="sec" id="gDefault">기본값으로 되돌리기</button></div>
+    <div class="msg" id="gMsg"></div>
+  </section>
+
+  <section>
+    <h2>참가자 전체</h2>
+    <div class="row"><input type="text" id="q" placeholder="닉네임 검색"><button class="sec" id="csvAll">순위표 CSV</button></div>
+    <div style="overflow:auto"><table><thead><tr id="thead"></tr></thead><tbody id="body"></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>데이터 관리</h2>
+    <div class="row"><button class="warn" id="resetScores">기록만 초기화</button><button class="warn" id="delAll">참가자 전체 삭제</button></div>
+    <div class="msg" id="dmMsg"></div>
+    <div class="note">테스트 기록은 행사 직전에 “기록만 초기화”나 “전체 삭제”로 정리하세요.</div>
+  </section>
+
+  <section>
+    <h2>관리자 비밀번호 변경</h2>
+    <div class="row"><input type="password" id="pw1" placeholder="새 비밀번호 (6자 이상)"><button id="pwSave">변경</button></div>
+    <div class="msg" id="pwMsg"></div>
+  </section>
+</main>
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="gp-store.js"></script>
+<script>
+(function(){
+'use strict';
+const C = window.GP_CONFIG, Store = window.GPStore, $ = id => document.getElementById(id);
+const say = (id, t, ok) => { const e = $(id); e.textContent = t; e.className = 'msg' + (ok ? '' : ' bad'); };
+const SKEY = 'gp_admin_h';
+const DEF = { hpMax:100, levelSec:8, startSpeed:220, stepPct:22, maxSpeedMul:5, spawnStart:0.7, spawnMin:0.22, goldPct:10, healPct:9, healAmt:10, badPct:9, badStep:1.1, badMax:24, badDmg:15, missDmg:6, pts:10, goldPts:50, comboStep:8, comboMax:3, levelBonus:50, specialSec:12, specialPts:300, specialHeal:15, setBonus:1000, crowdStep:0.35, crowdMax:4 };
+const LABEL = {
+  hpMax:['최대 생명력','시작 생명력이기도 해요'], levelSec:['레벨업 간격(초)','몇 초마다 한 단계'], startSpeed:['시작 낙하 속도','화면 높이(640) 기준 px/초'],
+  stepPct:['레벨당 속도 증가(%)','1레벨 대비 누적'], maxSpeedMul:['속도 상한(배)','처음의 몇 배까지'], spawnStart:['시작 등장 간격(초)','작을수록 많이 나와요'],
+  spawnMin:['등장 간격 하한(초)','레벨이 올라도 이보다 빠르진 않아요'], goldPct:['황금 농산물 비율(%)',''], healPct:['회복 아이템 비율(%)','생명력이 낮으면 자동으로 늘어나요'],
+  healAmt:['단비 회복량','햇살은 2배'], badPct:['감소 아이템 시작 비율(%)',''], badStep:['레벨당 비율 증가(%p)',''], badMax:['감소 아이템 비율 상한(%)',''],
+  badDmg:['장화·깡통 감소량','타이어는 +5'], missDmg:['농산물 놓칠 때 감소량',''], pts:['농산물 점수',''], goldPts:['황금 농산물 점수',''],
+  comboStep:['콤보 배수 올라가는 간격','몇 콤보마다 +1배'], comboMax:['최대 콤보 배수',''], levelBonus:['레벨업 보너스 점수',''],
+  specialSec:['스페셜 상품 등장 간격(초)','양갱·레몬100·발라먹차가 번갈아 나와요'], specialPts:['스페셜 상품 점수',''], specialHeal:['스페셜 상품 생명력 회복량',''], setBonus:['스페셜 3종 모으면 보너스','한 판에 3종을 모두 잡았을 때'],
+  crowdStep:['물량 증가 속도','레벨마다 한 번에 나오는 개수가 늘어나는 정도 (0이면 항상 1개씩)'], crowdMax:['한 번에 추가로 나오는 최대 개수','4이면 최대 5개씩 쏟아져요']
+};
+const kstInput = iso => iso ? new Date(Date.parse(iso) + 9*3600e3).toISOString().slice(0,16) : '';
+const fromKst = v => v ? new Date(v + ':00+09:00').toISOString() : null;
+const kst = iso => new Date(iso).toLocaleString('ko-KR', { timeZone:'Asia/Seoul', hour12:false });
+const csvCell = v => { let s = String(v ?? ''); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g,'""') + '"'; };
+function download(name, rows) {
+  const blob = new Blob(['﻿' + rows.map(r => r.map(csvCell).join(',')).join('\r\n')], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = name + '_' + new Date(Date.now()+9*3600e3).toISOString().slice(0,16).replace(/[-:T]/g,'') + '.csv'; a.click(); URL.revokeObjectURL(a.href);
+}
+
+/* ---------- 로그인 ---------- */
+async function tryLogin(h) {
+  let stored = await Store.getAdminHash();
+  if (!stored) stored = await Store.pwHash(C.adminDefaultPassword);
+  if (h !== stored) return false;
+  sessionStorage.setItem(SKEY, h); enter(); return true;
+}
+$('gateForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  try { if (!(await tryLogin(await Store.pwHash($('pw').value)))) say('gateMsg', '비밀번호가 맞지 않아요.'); else say('gateMsg', '', true); }
+  catch (x) { console.error(x); say('gateMsg', '서버에 연결하지 못했어요. 설정(firebase-config.js)을 확인해 주세요.'); }
+});
+$('logout').onclick = () => { sessionStorage.removeItem(SKEY); location.reload(); };
+
+let ranks = [], sortKey = 'rank', asc = true, filter = '';
+const COLS = [['rank','순위'],['nickname','닉네임'],['topScore','최고 점수'],['topLevel','레벨'],['plays','플레이'],['phone','휴대폰'],['_d','']];
+function enter() {
+  $('gate').hidden = true; $('app').hidden = false; $('modeTag').textContent = Store.demo ? '데모 모드' : 'Firebase 연결됨';
+  $('thead').innerHTML = '';
+  COLS.forEach(([k,l]) => { const th = document.createElement('th'); th.textContent = l; if (k !== '_d' && k !== 'phone') th.onclick = () => { if (sortKey === k) asc = !asc; else { sortKey = k; asc = k === 'nickname' || k === 'rank'; } render(); }; $('thead').appendChild(th); });
+  Store.onAllRanks((list, err) => { if (err) { alert('데이터를 불러오지 못했어요. Firestore 규칙을 확인해 주세요.'); return; } ranks = list; render(); });
+  Store.onEvent(d => { d = d || {}; $('evS').value = kstInput(d.startTime); $('evE').value = kstInput(d.endTime);
+    $('evNow').textContent = (d.startTime || d.endTime) ? '현재 설정: ' + (d.startTime ? kst(d.startTime) : '제한 없음') + ' ~ ' + (d.endTime ? kst(d.endTime) : '제한 없음') : '현재 설정: 기간 제한 없음 (상시 진행)'; });
+  Store.onGame(g => buildGameForm(g || {}));
+}
+
+/* ---------- 현황/표 ---------- */
+const phones = {};
+function render() {
+  const played = ranks.filter(r => r.topScore > 0), sc = played.map(r => r.topScore);
+  $('sCount').textContent = ranks.length; $('sPlayed').textContent = played.length;
+  $('sMax').textContent = (sc.length ? Math.max(...sc) : 0).toLocaleString();
+  $('sAvg').textContent = sc.length ? Math.round(sc.reduce((a,b) => a+b, 0) / sc.length).toLocaleString() : 0;
+  $('sLv').textContent = played.length ? Math.max(...played.map(r => r.topLevel || 0)) : 0;
+  const rankOf = new Map(ranks.map((r,i) => [r.id, r.topScore > 0 ? i + 1 : '-']));
+  let rows = ranks.map(r => Object.assign({ rank: rankOf.get(r.id) }, r));
+  if (filter) rows = rows.filter(r => (r.nickname || '').toLowerCase().includes(filter));
+  rows.sort((a,b) => { const x = a[sortKey], y = b[sortKey]; const c = typeof x === 'string' || typeof y === 'string' ? String(x).localeCompare(String(y), 'ko') : (x === '-' ? 1e9 : x||0) - (y === '-' ? 1e9 : y||0); return asc ? c : -c; });
+  const body = $('body'); body.innerHTML = '';
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    [r.rank, r.nickname, (r.topScore||0).toLocaleString(), r.topLevel||0, r.plays ?? ''].forEach((v,i) => { const td = document.createElement('td'); td.textContent = v; if (i === 2 || i === 3 || i === 4) td.className = 'num'; tr.appendChild(td); });
+    const tp = document.createElement('td'); const bt = document.createElement('button'); bt.className = 'sec'; bt.textContent = phones[r.id] || '보기';
+    bt.onclick = async () => { const u = await Store.getUser(r.id); phones[r.id] = u ? u.phone4 : '-'; bt.textContent = phones[r.id]; }; tp.appendChild(bt); tr.appendChild(tp);
+    const td = document.createElement('td'); const d = document.createElement('button'); d.className = 'warn'; d.textContent = '삭제';
+    d.onclick = async () => { if (confirm(r.nickname + ' 님을 삭제할까요?')) await Store.deleteUser(r.id); }; td.appendChild(d); tr.appendChild(td);
+    body.appendChild(tr);
+  });
+  const tb = $('topBody'); tb.innerHTML = '';
+  played.slice(0, 10).forEach((r, i) => { const tr = document.createElement('tr');
+    [i < 3 ? ['🥇','🥈','🥉'][i] : i + 1, r.nickname, r.topScore.toLocaleString(), r.topLevel || 0, phones[r.id] || '-'].forEach(v => { const td = document.createElement('td'); td.textContent = v; tr.appendChild(td); }); tb.appendChild(tr); });
+}
+$('q').addEventListener('input', e => { filter = e.target.value.trim().toLowerCase(); render(); });
+async function loadTopPhones() { for (const r of ranks.filter(r => r.topScore > 0).slice(0, 10)) { const u = await Store.getUser(r.id); phones[r.id] = u ? u.phone4 : '-'; } render(); }
+$('revealTop').onclick = loadTopPhones;
+$('csvTop').onclick = async () => { await loadTopPhones(); download('goldpick_top10', [['순위','닉네임','점수','레벨','휴대폰뒷자리']].concat(ranks.filter(r => r.topScore > 0).slice(0,10).map((r,i) => [i+1, r.nickname, r.topScore, r.topLevel||0, phones[r.id]||'']))); };
+$('csvAll').onclick = () => download('goldpick_ranks', [['순위','닉네임','점수','레벨','플레이횟수']].concat(ranks.map((r,i) => [r.topScore > 0 ? i+1 : '', r.nickname, r.topScore||0, r.topLevel||0, r.plays ?? ''])));
+
+/* ---------- 기간 ---------- */
+$('evSave').onclick = async () => {
+  const s = fromKst($('evS').value), e = fromKst($('evE').value);
+  if (s && e && Date.parse(e) <= Date.parse(s)) return say('evMsg', '마감이 시작보다 늦어야 해요.');
+  try { await Store.setEvent(s, e); say('evMsg', '저장했어요. 바로 반영돼요.', true); } catch (x) { console.error(x); say('evMsg', '저장에 실패했어요.'); }
+};
+$('evClear').onclick = async () => { if (!confirm('기간 제한을 해제할까요? 상시 진행 상태가 돼요.')) return; await Store.setEvent(null, null); say('evMsg', '기간 제한을 해제했어요.', true); };
+
+/* ---------- 난이도 ---------- */
+function buildGameForm(g) {
+  const box = $('gameForm'); if (box.contains(document.activeElement)) return;
+  box.innerHTML = '';
+  Object.keys(DEF).forEach(k => { const l = document.createElement('label'); const v = g[k] != null && g[k] !== '' ? g[k] : DEF[k];
+    l.innerHTML = '<div></div><input type="number" step="any"><span></span>'; l.children[0].textContent = LABEL[k][0]; l.children[1].value = v; l.children[1].dataset.k = k; l.children[2].textContent = LABEL[k][1] + (LABEL[k][1] ? ' · ' : '') + '기본 ' + DEF[k]; box.appendChild(l); });
+}
+$('gSave').onclick = async () => {
+  const o = {}; for (const inp of $('gameForm').querySelectorAll('input')) { const v = Number(inp.value); if (!isFinite(v) || v < 0) return say('gMsg', '숫자를 확인해 주세요: ' + LABEL[inp.dataset.k][0]); o[inp.dataset.k] = v; }
+  if (o.hpMax < 10) return say('gMsg', '최대 생명력은 10 이상이어야 해요.'); if (o.levelSec < 3) return say('gMsg', '레벨업 간격은 3초 이상이어야 해요.');
+  try { await Store.setGame(o); say('gMsg', '저장했어요. 다음 판부터 적용돼요.', true); } catch (x) { console.error(x); say('gMsg', '저장에 실패했어요.'); }
+};
+$('gDefault').onclick = async () => { if (!confirm('난이도를 기본값으로 되돌릴까요?')) return; await Store.setGame(Object.assign({}, DEF)); say('gMsg', '기본값으로 되돌렸어요.', true); };
+
+/* ---------- 데이터 관리 ---------- */
+$('resetScores').onclick = async () => {
+  if (!confirm('모든 참가자의 기록(점수·레벨·플레이 횟수)을 0으로 초기화할까요?')) return;
+  if (prompt('확인을 위해 "초기화"를 입력해 주세요.') !== '초기화') return say('dmMsg', '취소했어요.', true);
+  try { await Store.resetScores(); Object.keys(phones).forEach(k => delete phones[k]); say('dmMsg', '기록을 초기화했어요.', true); } catch (e) { console.error(e); say('dmMsg', '초기화에 실패했어요.'); }
+};
+$('delAll').onclick = async () => {
+  if (!confirm('참가자 전체를 삭제할까요? 되돌릴 수 없어요.')) return;
+  if (prompt('확인을 위해 "전체삭제"를 입력해 주세요.') !== '전체삭제') return say('dmMsg', '취소했어요.', true);
+  try { await Store.deleteAll(); say('dmMsg', '전체 삭제했어요.', true); } catch (e) { console.error(e); say('dmMsg', '삭제에 실패했어요.'); }
+};
+$('pwSave').onclick = async () => {
+  const p = $('pw1').value; if (p.length < 6) return say('pwMsg', '6자 이상 입력해 주세요.');
+  try { const h = await Store.pwHash(p); await Store.setAdminHash(h); sessionStorage.setItem(SKEY, h); $('pw1').value = ''; say('pwMsg', '비밀번호를 바꿨어요.', true); } catch (e) { say('pwMsg', '변경에 실패했어요.'); }
+};
+
+/* ---------- 시작 ---------- */
+(async () => {
+  try { await Store.init(); } catch (e) { say('gateMsg', '서버에 연결하지 못했어요. 네트워크를 확인해 주세요.'); return; }
+  $('gateNote').textContent = Store.demo ? '데모 모드예요. 최초 비밀번호는 ' + C.adminDefaultPassword + ' 입니다.' : '';
+  const h = sessionStorage.getItem(SKEY); if (h) try { await tryLogin(h); } catch (e) {}
+})();
+})();
+</script>
+</body>
+</html>
